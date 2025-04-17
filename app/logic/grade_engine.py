@@ -1,42 +1,39 @@
-
 import os
+import json
+import re
 from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_api_key = os.getenv("OPENAI_API_KEY")
 
-def analyze_answers_and_generate(answers):
-    joined_answers = "\n".join([f"{i+1}. {a}" for i, a in enumerate(answers)])
-    system = (
-        "Ты — эксперт по дизайну и карьерному развитию. Проанализируй ответы дизайнера и оцени его текущий грейд "
-        "(Junior, Middle, Senior, Lead, Director). После этого предложи рекомендации и полезные материалы для роста "
-        "до следующего уровня."
-    )
-    prompt = (
-        f"Ответы пользователя:\n{joined_answers}\n\nСформулируй:\n"
-        "1. Текущий грейд\n2. Основные сильные и слабые стороны\n"
-        "3. Рекомендации по развитию\n4. Список полезных бесплатных материалов (ссылки и названия)"
-    )
+def grade_user_from_history(history: list[str]) -> dict:
+    with open("data/levels.json", "r") as f:
+        levels = json.load(f)
 
+    levels_text = "\n".join(
+        [f"{lvl['level']}: {lvl['description']}" for lvl in levels]
+    )
+    prompt = f"""
+Ты — эксперт по оценке дизайнеров. На основе истории ответов пользователя:
+{history}
+
+И матрицы уровней:
+{levels_text}
+
+Определи текущий уровень пользователя. Также предложи, какие навыки ему развивать, чтобы перейти на следующий уровень. Верни ответ в формате JSON:
+{{
+    "grade": "Senior",
+    "next_step": "Lead",
+    "recommendations": ["Прокачать навык наставничества", "Углубить влияние на продукт"],
+    "materials": ["https://example.com/article1", "https://example.com/book"]
+}}
+"""
+
+    client = OpenAI(api_key=openai_api_key)
     response = client.chat.completions.create(
         model="gpt-4",
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.7
+        messages=[{"role": "user", "content": prompt}]
     )
 
-    result = response.choices[0].message.content
-    grade = "Неопределён"
-    recommendations = ""
-    materials = ""
-
-    for line in result.split("\n"):
-        if "грейд" in line.lower():
-            grade = line.split(":")[-1].strip()
-        elif "рекомендации" in line.lower():
-            recommendations = line
-        elif "материал" in line.lower():
-            materials += line + "\n"
-
-    return grade, recommendations.strip(), materials.strip()
+    content = response.choices[0].message.content
+    json_match = re.search(r"\{.*\}", content, re.DOTALL)
+    return json.loads(json_match.group()) if json_match else {"error": "Invalid GPT output"}
