@@ -23,6 +23,10 @@ async def telegram_webhook(request: Request):
         if not isinstance(message.get("chat"), dict):
             print("⚠️ Unexpected format in message:", data)
             return {"status": "ignored"}
+        message = data["message"]
+        if not isinstance(message.get("chat"), dict):
+            print("⚠️ Unexpected format in message:", data)
+            return {"status": "ignored"}
             message = data["message"]
             chat_id = str(message["chat"]["id"])
             username = message["from"].get("first_name", "друг")
