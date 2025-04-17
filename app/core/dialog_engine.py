@@ -1,4 +1,3 @@
-
 from openai import OpenAI
 import os
 
@@ -10,21 +9,21 @@ BASE_PROMPT = (
     "Задавай вопросы по одному. Отвечай только вопросом, не добавляй комментариев. Формулируй их просто и понятно."
 )
 
-DEFAULT_QUESTIONS = [
-    "Расскажи, над каким последним проектом ты работал и какую роль ты в нём выполнял?",
-    "Как ты принимаешь дизайнерские решения — на основе чего?",
-    "Как ты собираешь и учитываешь обратную связь от команды или заказчика?",
-    "С какими сложностями ты сталкивался в проекте и как ты их решал?",
-    "Как ты проверяешь, насколько решение действительно эффективно?",
-    "Как ты работаешь с разработчиками — были ли конфликты или трудности?",
-    "Как ты объясняешь ценность дизайна бизнесу?",
-    "Есть ли у тебя опыт наставничества или ведения других дизайнеров?",
-    "Как ты подходишь к росту в профессии и чему учишься сейчас?",
-    "Как ты организуешь свою работу и оцениваешь результат?"
-]
-
 def get_next_question(session):
-    idx = len(session.get("answers", []))
-    if idx < len(DEFAULT_QUESTIONS):
-        return DEFAULT_QUESTIONS[idx]
-    return "На этом всё, спасибо за ответы!"
+    history = session.get("answers", [])
+    messages = [{"role": "system", "content": BASE_PROMPT}]
+    
+    for answer in history:
+        messages.append({"role": "user", "content": answer})
+    
+    messages.append({"role": "assistant", "content": "Следующий вопрос?"})
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=messages,
+            temperature=0.7,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return "Произошла ошибка при генерации вопроса. Попробуй ещё раз."

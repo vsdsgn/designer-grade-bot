@@ -1,5 +1,6 @@
 import requests
 import os
+import json
 
 TELEGRAM_API = f"https://api.telegram.org/bot{os.getenv('TELEGRAM_TOKEN')}"
 
@@ -19,10 +20,8 @@ def send_document(chat_id, file_path):
         if not response.ok:
             print("⚠️ Ошибка при отправке документа:", response.text)
 
-import json
-
 def delete_inline_keyboard(chat_id, message_id):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup"
+    url = f"{TELEGRAM_API}/editMessageReplyMarkup"
     payload = {
         "chat_id": chat_id,
         "message_id": message_id,
