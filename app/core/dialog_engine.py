@@ -1,23 +1,16 @@
+
 from openai import OpenAI
-import os
+from app.logic.prompts import BASE_PROMPT
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI()
 
-BASE_PROMPT = (
-    "Ты — опытный ментор-дизайнер. Твоя задача — определить грейд собеседника (Junior, Middle, Senior, Lead, Director) "
-    "на основе диалога из 6–10 вопросов. Каждый вопрос должен раскрывать навыки, мышление и подход кандидата. "
-    "Задавай вопросы по одному. Отвечай только вопросом, не добавляй комментариев. Формулируй их просто и понятно."
-)
-
-def get_next_question(session):
-    history = session.get("answers", [])
+def get_next_question(session: dict) -> str:
+    history = session.get("messages", [])
     messages = [{"role": "system", "content": BASE_PROMPT}]
-    
+
     for answer in history:
         messages.append({"role": "user", "content": answer})
-    
-    messages.append({"role": "assistant", "content": "Следующий вопрос?"})
-    
+
     try:
         response = client.chat.completions.create(
             model="gpt-4",
@@ -25,8 +18,9 @@ def get_next_question(session):
             temperature=0.7,
         )
         if response.choices:
-        return response.choices[0].message.content.strip()
-    else:
-        return "Не удалось получить ответ. Попробуй снова."
+            return response.choices[0].message.content.strip()
+        else:
+            return "Что-то пошло не так. Попробуй снова."
     except Exception as e:
-        return "Произошла ошибка при генерации вопроса. Попробуй ещё раз."
+        print("❌ Ошибка GPT (get_next_question):", e)
+        return "Произошла ошибка. Попробуй позже."

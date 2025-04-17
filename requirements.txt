@@ -1,7 +1,4 @@
 fastapi
-uvicorn
-requests
+httpx
 openai
-python-dotenv
 reportlab
-aiogram
