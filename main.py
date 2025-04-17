@@ -6,7 +6,7 @@ from app.core.dialog_engine import get_next_question
 from app.logic.grade_engine import grade_user_from_history
 from app.utils.pdf_report import generate_pdf_report
 from app.utils.save_to_json import save_user_data, save_json
-from app.utils.feedback import handle_feedback
+from app.utils.feedback import save_feedback
 
 app = FastAPI()
 
