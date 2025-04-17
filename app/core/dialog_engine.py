@@ -24,6 +24,9 @@ def get_next_question(session):
             messages=messages,
             temperature=0.7,
         )
+        if response.choices:
         return response.choices[0].message.content.strip()
+    else:
+        return "Не удалось получить ответ. Попробуй снова."
     except Exception as e:
         return "Произошла ошибка при генерации вопроса. Попробуй ещё раз."

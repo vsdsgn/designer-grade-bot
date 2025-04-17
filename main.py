@@ -18,7 +18,11 @@ async def telegram_webhook(request: Request):
     try:
         data = await request.json()
 
-        if "message" in data:
+        if "message" in data and isinstance(data["message"], dict):
+        message = data["message"]
+        if not isinstance(message.get("chat"), dict):
+            print("⚠️ Unexpected format in message:", data)
+            return {"status": "ignored"}
             message = data["message"]
             chat_id = str(message["chat"]["id"])
             username = message["from"].get("first_name", "друг")

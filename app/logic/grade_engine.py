@@ -34,6 +34,9 @@ def grade_user_from_history(history: list[str]) -> dict:
         messages=[{"role": "user", "content": prompt}]
     )
 
+    if response.choices:
     content = response.choices[0].message.content
+else:
+    content = "Ошибка генерации ответа"
     json_match = re.search(r"\{.*\}", content, re.DOTALL)
     return json.loads(json_match.group()) if json_match else {"error": "Invalid GPT output"}
