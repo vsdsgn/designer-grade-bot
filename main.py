@@ -56,6 +56,7 @@ async def telegram_webhook(request: Request) -> JSONResponse:
                 return JSONResponse({"ok": False}, status_code=403)
 
         update = await request.json()
+        logger.info("Incoming webhook update_id=%s", update.get("update_id"))
         asyncio.create_task(_safe_handle_update(update))
         return JSONResponse({"ok": True})
     except Exception:
@@ -123,21 +124,27 @@ def _weaknesses_label(language: str) -> str:
 async def handle_update(update: Dict[str, Any]) -> None:
     message = update.get("message") or update.get("edited_message")
     if not message:
+        logger.info("Update without message payload was ignored")
         return
 
     user = message.get("from", {})
     user_id = user.get("id")
     if user_id is None:
+        logger.info("Message without user_id was ignored")
         return
 
     chat = message.get("chat", {})
     chat_id = chat.get("id")
     if chat_id is None:
+        logger.info("Message without chat_id was ignored")
         return
 
     text = message.get("text")
     if text is None:
+        logger.info("Non-text message was ignored")
         return
+
+    logger.info("Message received chat_id=%s user_id=%s text=%s", chat_id, user_id, text)
 
     session = await _get_or_create_session(user_id, user)
 
@@ -411,8 +418,10 @@ async def on_startup() -> None:
         logger.warning("OPENAI_API_KEY is not set")
 
     if AUTO_SET_WEBHOOK and TELEGRAM_BOT_TOKEN and PUBLIC_URL:
-        await set_webhook(
+        webhook_url = f"{PUBLIC_URL.rstrip('/')}/webhook"
+        webhook_ok = await set_webhook(
             TELEGRAM_BOT_TOKEN,
-            f"{PUBLIC_URL.rstrip('/')}/webhook",
+            webhook_url,
             TELEGRAM_WEBHOOK_SECRET,
         )
+        logger.info("Webhook registration result=%s url=%s", webhook_ok, webhook_url)
