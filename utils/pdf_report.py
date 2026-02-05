@@ -4,7 +4,7 @@ import os
 from typing import Any, Dict, List
 
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.pdfmetrics import stringWidth
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
 logger = logging.getLogger("designer_grade_bot.pdf")
