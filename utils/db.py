@@ -16,7 +16,10 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 async def init_db() -> Optional[asyncpg.Pool]:
     if not DATABASE_URL:
-        logger.warning("DATABASE_URL not set; database features will use local JSON storage")
+        logger.info(
+            "DATABASE_URL not set; using file storage under DATA_DIR=%s",
+            os.getenv("DATA_DIR", "data"),
+        )
         return None
 
     try:
