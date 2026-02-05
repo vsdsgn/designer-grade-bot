@@ -5,4 +5,8 @@ __pycache__/
 .venv/
 .idea/
 .vscode/
-data/
+
+# runtime data
+/data/*
+!/data/matrices/
+!/data/matrices/**

@@ -1,0 +1,372 @@
+{
+  "meta": {
+    "title_ru": "Универсальная матрица компетенций для продуктовых дизайнеров",
+    "title_en": "Universal competency matrix for product designers",
+    "version": "1.0",
+    "grade_scale": [
+      "Junior",
+      "Middle",
+      "Senior",
+      "Lead",
+      "Head/Art Director",
+      "Design Director"
+    ]
+  },
+  "specializations": {
+    "ru": [
+      "Продуктовый дизайн (UX/UI)",
+      "Визуальный дизайн",
+      "Дизайн-системы",
+      "UX-редактура",
+      "Motion",
+      "Исследования",
+      "Сервисный дизайн"
+    ],
+    "en": [
+      "Product design (UX/UI)",
+      "Visual design",
+      "Design systems",
+      "UX writing",
+      "Motion",
+      "Research",
+      "Service design"
+    ]
+  },
+  "levels": [
+    {
+      "id": "junior",
+      "title_ru": "Junior (Младший дизайнер)",
+      "title_en": "Junior",
+      "scope_ru": "Выполняет задачи с подробным брифом и регулярной проверкой.",
+      "scope_en": "Executes tasks with a clear brief and frequent review."
+    },
+    {
+      "id": "middle",
+      "title_ru": "Middle (Дизайнер)",
+      "title_en": "Middle",
+      "scope_ru": "Самостоятельно ведет фичи/части продукта и принимает типовые решения.",
+      "scope_en": "Owns features or parts of a product with standard decisions."
+    },
+    {
+      "id": "senior",
+      "title_ru": "Senior (Старший дизайнер)",
+      "title_en": "Senior",
+      "scope_ru": "Работает с неопределенностью, влияет на продукт и качество решений.",
+      "scope_en": "Handles ambiguity and influences product outcomes and quality."
+    },
+    {
+      "id": "lead",
+      "title_ru": "Lead (Ведущий дизайнер)",
+      "title_en": "Lead",
+      "scope_ru": "Ведет продуктовую область, координирует команду, задает стандарты.",
+      "scope_en": "Leads a product area, coordinates the team, sets standards."
+    },
+    {
+      "id": "head",
+      "title_ru": "Head / Art Director",
+      "title_en": "Head / Art Director",
+      "scope_ru": "Руководит несколькими командами, развивает дизайн-функцию и процессы.",
+      "scope_en": "Leads multiple teams, grows the design function and processes."
+    },
+    {
+      "id": "design_director",
+      "title_ru": "Design Director",
+      "title_en": "Design Director",
+      "scope_ru": "Отвечает за дизайн-стратегию портфеля продуктов и уровень компании.",
+      "scope_en": "Owns portfolio-level design strategy and company-wide impact."
+    }
+  ],
+  "competencies": [
+    {
+      "id": "product_strategy",
+      "title_ru": "Продуктовое мышление и стратегия",
+      "title_en": "Product thinking & strategy",
+      "expectations": {
+        "junior": {
+          "ru": ["Понимает цели фичи и целевого пользователя", "Использует заданные метрики"],
+          "en": ["Understands feature goals and target users", "Uses provided metrics"]
+        },
+        "middle": {
+          "ru": ["Связывает решения с целями продукта", "Формулирует гипотезы и критерии успеха"],
+          "en": ["Links decisions to product goals", "Forms hypotheses and success criteria"]
+        },
+        "senior": {
+          "ru": ["Влияет на направление продукта", "Балансирует ценность для пользователя и бизнеса"],
+          "en": ["Influences product direction", "Balances user and business value"]
+        },
+        "lead": {
+          "ru": ["Формирует стратегию продуктовой области", "Выравнивает команды вокруг метрик"],
+          "en": ["Shapes strategy for a product area", "Aligns teams around metrics"]
+        },
+        "head": {
+          "ru": ["Определяет дизайн-стратегию на уровне компании", "Связывает дизайн с бизнес-целями"],
+          "en": ["Defines company-level design strategy", "Connects design to business goals"]
+        },
+        "design_director": {
+          "ru": ["Формирует портфельную стратегию", "Влияет на решения руководства"],
+          "en": ["Creates portfolio strategy", "Influences executive decisions"]
+        }
+      }
+    },
+    {
+      "id": "research_insights",
+      "title_ru": "Исследования и инсайты",
+      "title_en": "Research & insights",
+      "expectations": {
+        "junior": {
+          "ru": ["Участвует в исследованиях под руководством", "Использует готовые данные"],
+          "en": ["Assists in research with guidance", "Uses available data"]
+        },
+        "middle": {
+          "ru": ["Планирует и проводит исследования", "Синтезирует инсайты"],
+          "en": ["Plans and runs research", "Synthesizes insights"]
+        },
+        "senior": {
+          "ru": ["Выбирает методы под задачу", "Связывает инсайты со стратегией"],
+          "en": ["Selects methods for the problem", "Links insights to strategy"]
+        },
+        "lead": {
+          "ru": ["Выстраивает непрерывное исследование", "Развивает культуру discovery"],
+          "en": ["Builds continuous research", "Develops discovery culture"]
+        },
+        "head": {
+          "ru": ["Запускает исследовательские программы для нескольких команд"],
+          "en": ["Runs research programs across teams"]
+        },
+        "design_director": {
+          "ru": ["Инвестирует в исследовательские компетенции на уровне компании"],
+          "en": ["Invests in company-level research capability"]
+        }
+      }
+    },
+    {
+      "id": "ux_ia",
+      "title_ru": "UX, IA и сценарии",
+      "title_en": "UX, IA & flows",
+      "expectations": {
+        "junior": {
+          "ru": ["Строит простые сценарии", "Использует паттерны и гайдлайны"],
+          "en": ["Builds simple flows", "Uses patterns and guidelines"]
+        },
+        "middle": {
+          "ru": ["Проектирует IA для фич", "Продумывает edge cases"],
+          "en": ["Designs IA for features", "Handles edge cases"]
+        },
+        "senior": {
+          "ru": ["Проектирует сложные системы", "Упрощает пользовательский путь"],
+          "en": ["Architects complex systems", "Simplifies user journeys"]
+        },
+        "lead": {
+          "ru": ["Задает подход к взаимодействию в продуктовой зоне", "Обеспечивает консистентность"],
+          "en": ["Sets interaction approach for a product area", "Ensures consistency"]
+        },
+        "head": {
+          "ru": ["Определяет UX-принципы для организации"],
+          "en": ["Defines org-wide UX principles"]
+        },
+        "design_director": {
+          "ru": ["Формирует опыт на уровне портфеля продуктов"],
+          "en": ["Shapes experience at portfolio level"]
+        }
+      }
+    },
+    {
+      "id": "visual_ui",
+      "title_ru": "Визуальный дизайн и UI",
+      "title_en": "Visual design & UI",
+      "expectations": {
+        "junior": {
+          "ru": ["Следует дизайн-системе", "Держит базовую визуальную аккуратность"],
+          "en": ["Follows design system", "Maintains basic visual polish"]
+        },
+        "middle": {
+          "ru": ["Принимает уверенные визуальные решения", "Адаптирует стиль под контекст"],
+          "en": ["Makes confident visual decisions", "Adapts style to context"]
+        },
+        "senior": {
+          "ru": ["Повышает планку качества", "Развивает визуальный язык"],
+          "en": ["Raises quality bar", "Evolves visual language"]
+        },
+        "lead": {
+          "ru": ["Определяет визуальное направление для продукта", "Согласует с брендом"],
+          "en": ["Defines product visual direction", "Aligns with brand"]
+        },
+        "head": {
+          "ru": ["Владеет визуальной системой на уровне компании"],
+          "en": ["Owns company-level visual system"]
+        },
+        "design_director": {
+          "ru": ["Формирует долгосрочную визуальную стратегию"],
+          "en": ["Defines long-term visual strategy"]
+        }
+      }
+    },
+    {
+      "id": "systems_process",
+      "title_ru": "Системность и процессы",
+      "title_en": "Systems & process",
+      "expectations": {
+        "junior": {
+          "ru": ["Использует систему и документацию", "Следует процессу"],
+          "en": ["Uses system and documentation", "Follows process"]
+        },
+        "middle": {
+          "ru": ["Вносит вклад в систему", "Описывает решения"],
+          "en": ["Contributes to the system", "Documents decisions"]
+        },
+        "senior": {
+          "ru": ["Владеет частью дизайн-системы", "Улучшает процессы"],
+          "en": ["Owns parts of the design system", "Improves processes"]
+        },
+        "lead": {
+          "ru": ["Настраивает governance системы", "Выравнивает процессы между командами"],
+          "en": ["Sets system governance", "Aligns processes across teams"]
+        },
+        "head": {
+          "ru": ["Масштабирует систему на несколько команд", "Инвестирует в инструменты"],
+          "en": ["Scales system across teams", "Invests in tooling"]
+        },
+        "design_director": {
+          "ru": ["Определяет стратегию систем и операционных процессов"],
+          "en": ["Defines systems and operations strategy"]
+        }
+      }
+    },
+    {
+      "id": "execution_quality",
+      "title_ru": "Исполнение и качество",
+      "title_en": "Execution & quality",
+      "expectations": {
+        "junior": {
+          "ru": ["Нуждается в ревью", "Сроки и приоритизация формируются"],
+          "en": ["Needs frequent review", "Developing prioritization"]
+        },
+        "middle": {
+          "ru": ["Надежен в сроках", "Внимателен к деталям"],
+          "en": ["Reliable on deadlines", "Detail-oriented"]
+        },
+        "senior": {
+          "ru": ["Стабильно высокое качество", "Управляет неопределенностью"],
+          "en": ["Consistently high quality", "Manages ambiguity"]
+        },
+        "lead": {
+          "ru": ["Держит качество команды", "Управляет рисками"],
+          "en": ["Maintains team quality", "Manages risks"]
+        },
+        "head": {
+          "ru": ["Встраивает качество в процессы", "Повышает надежность поставки"],
+          "en": ["Builds quality into processes", "Improves delivery reliability"]
+        },
+        "design_director": {
+          "ru": ["Определяет метрики качества на уровне компании"],
+          "en": ["Defines org-wide quality metrics"]
+        }
+      }
+    },
+    {
+      "id": "communication",
+      "title_ru": "Коммуникация и сотрудничество",
+      "title_en": "Communication & collaboration",
+      "expectations": {
+        "junior": {
+          "ru": ["Получает и применяет обратную связь", "Прозрачно сообщает статус"],
+          "en": ["Receives and applies feedback", "Communicates status clearly"]
+        },
+        "middle": {
+          "ru": ["Аргументирует решения", "Эффективно работает с PM/Dev"],
+          "en": ["Explains rationale", "Works effectively with PM/Eng"]
+        },
+        "senior": {
+          "ru": ["Влияет на стейкхолдеров", "Разрешает конфликты"],
+          "en": ["Influences stakeholders", "Resolves conflicts"]
+        },
+        "lead": {
+          "ru": ["Выстраивает согласование между командами", "Продвигает дизайн"],
+          "en": ["Aligns cross-functional teams", "Advocates for design"]
+        },
+        "head": {
+          "ru": ["Коммуницирует на уровне руководителей", "Формирует партнерства"],
+          "en": ["Communicates at executive level", "Builds partnerships"]
+        },
+        "design_director": {
+          "ru": ["Эффективен на уровне топ-менеджмента и совета"],
+          "en": ["Effective with execs and board"]
+        }
+      }
+    },
+    {
+      "id": "leadership_people",
+      "title_ru": "Лидерство и люди",
+      "title_en": "Leadership & people",
+      "expectations": {
+        "junior": {
+          "ru": ["Поддерживает команду", "Учится у наставника"],
+          "en": ["Supports the team", "Learns from mentorship"]
+        },
+        "middle": {
+          "ru": ["Может менторить младших", "Берет ответственность за проекты"],
+          "en": ["Mentors juniors", "Owns projects"]
+        },
+        "senior": {
+          "ru": ["Менторит системно", "Лидирует сложные проекты"],
+          "en": ["Mentors consistently", "Leads complex projects"]
+        },
+        "lead": {
+          "ru": ["Управляет командой и наймом", "Развивает дизайнеров"],
+          "en": ["Manages team and hiring", "Develops designers"]
+        },
+        "head": {
+          "ru": ["Руководит несколькими командами", "Строит дизайн-функцию"],
+          "en": ["Leads multiple teams", "Builds design function"]
+        },
+        "design_director": {
+          "ru": ["Определяет стратегию развития талантов", "Формирует структуру организации"],
+          "en": ["Defines talent strategy", "Shapes org structure"]
+        }
+      }
+    },
+    {
+      "id": "technical_handoff",
+      "title_ru": "Техническая реализация и handoff",
+      "title_en": "Technical collaboration & handoff",
+      "expectations": {
+        "junior": {
+          "ru": ["Базово понимает верстку и ограничения", "Следует правилам handoff"],
+          "en": ["Basic understanding of front-end constraints", "Follows handoff rules"]
+        },
+        "middle": {
+          "ru": ["Согласует решения с инженерами", "Думает о реализуемости"],
+          "en": ["Aligns with engineers", "Considers feasibility"]
+        },
+        "senior": {
+          "ru": ["Предвосхищает технические риски", "Улучшает handoff"],
+          "en": ["Anticipates technical risks", "Improves handoff"]
+        },
+        "lead": {
+          "ru": ["Определяет стандарты взаимодействия дизайн/разработка"],
+          "en": ["Defines design/engineering collaboration standards"]
+        },
+        "head": {
+          "ru": ["Масштабирует процессы совместной работы"],
+          "en": ["Scales collaboration processes"]
+        },
+        "design_director": {
+          "ru": ["Выстраивает стратегию взаимодействия дизайн/технологии"],
+          "en": ["Sets design/tech collaboration strategy"]
+        }
+      }
+    }
+  ],
+  "grading_rules": {
+    "ru": [
+      "Оценивай по фактическим примерам пользователя.",
+      "Выбирай грейд по совокупности компетенций; слабые области снижают итог.",
+      "Если уровень в разных компетенциях расходится, используй медианный уровень."
+    ],
+    "en": [
+      "Assess based on concrete user examples.",
+      "Pick grade based on overall competency level; weak areas reduce final grade.",
+      "If levels vary, use the median level."
+    ]
+  }
+}

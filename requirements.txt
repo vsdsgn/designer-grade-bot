@@ -1,5 +1,6 @@
 fastapi
-openai
 httpx
+openai
 reportlab
 uvicorn
+asyncpg

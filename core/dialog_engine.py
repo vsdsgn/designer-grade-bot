@@ -12,11 +12,12 @@ logger = logging.getLogger("designer_grade_bot.dialog")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1")
 
 SYSTEM_PROMPT = (
-    "Ты проводишь интервью, чтобы определить грейд дизайнера. "
-    "Задавай один вопрос за раз, опираясь на историю. "
-    "Когда информации достаточно, верни JSON с done=true и пустым next_question. "
-    "Иначе верни JSON с done=false и вопросом. "
-    "Язык вопроса: {language}."
+    "You are a senior product design consultant. "
+    "Your goal is to gather enough information to assess a designer's grade. "
+    "Ask one open question at a time and adapt to answers. "
+    "If you have enough information, return JSON: {\"done\": true, \"next_question\": \"\"}. "
+    "Otherwise return JSON: {\"done\": false, \"next_question\": \"...\"}. "
+    "Language: {language}."
 )
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -42,7 +43,6 @@ def _extract_json(text: str) -> Optional[Dict[str, Any]]:
         except json.JSONDecodeError:
             return None
 
-    # Try to find a JSON object inside the text
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if not match:
         return None
@@ -53,18 +53,14 @@ def _extract_json(text: str) -> Optional[Dict[str, Any]]:
 
 
 async def generate_next_question(
-    history: List[Dict[str, str]], language: str = "ru"
+    history: List[Dict[str, str]], matrix_context: str, language: str = "ru"
 ) -> Optional[str]:
-    """
-    Returns:
-        - next question as non-empty string
-        - "" when dialog is complete
-        - None on error
-    """
     prompt = SYSTEM_PROMPT.format(language=language)
     transcript = _format_history(history)
+    if matrix_context:
+        prompt = f"{prompt}\n\nCompetency matrices:\n{matrix_context}"
     if transcript:
-        prompt = f"{prompt}\n\nИстория:\n{transcript}"
+        prompt = f"{prompt}\n\nConversation:\n{transcript}"
 
     def _call_openai() -> str:
         response = client.responses.create(
@@ -75,7 +71,6 @@ async def generate_next_question(
         return response.output_text
 
     try:
-        # OpenAI SDK call is blocking; run it in a worker thread.
         text = await asyncio.to_thread(_call_openai)
     except Exception:
         logger.exception("OpenAI dialog generation failed")
@@ -92,7 +87,6 @@ async def generate_next_question(
             return ""
         return next_question
 
-    # Fallback: model returned plain text
     cleaned = text.strip()
     if cleaned.lower() in {"done", "stop", "end"}:
         return ""

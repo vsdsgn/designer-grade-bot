@@ -2,20 +2,25 @@ import asyncio
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from core.dialog_engine import generate_next_question
+from core.feedback_engine import generate_feedback_question
 from logic.grade_engine import grade_user_from_history
+from utils.db import (
+    init_db,
+    ensure_schema,
+    get_user_state,
+    save_feedback,
+    upsert_user_state,
+)
+from utils.matrices import load_competency_context
 from utils.pdf_report import generate_pdf_report
+from utils.telegram import send_document, send_message, set_webhook
 from utils.paths import data_path
-from utils.save_to_json import save_user_result
-from utils.telegram import send_document, send_message
-from utils.telegram import set_webhook
-from utils.feedback import save_feedback
-from utils.user_flags import load_user_flags, update_user_flags
 
 app = FastAPI(title="Designer Grade Bot")
 
@@ -28,10 +33,12 @@ logger = logging.getLogger("designer_grade_bot")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
 PUBLIC_URL = os.getenv("PUBLIC_URL", "")
+AUTO_SET_WEBHOOK = os.getenv("AUTO_SET_WEBHOOK", "false").lower() == "true"
 
 # In-memory session store
 USER_SESSIONS: Dict[int, Dict[str, Any]] = {}
-USER_FLAGS: Dict[str, Dict[str, bool]] = {}
+COMPETENCY_CONTEXT: str = ""
+DB_POOL = None
 
 
 @app.get("/health")
@@ -41,7 +48,6 @@ async def health() -> Dict[str, str]:
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request) -> JSONResponse:
-    """Telegram webhook endpoint."""
     try:
         if TELEGRAM_WEBHOOK_SECRET:
             secret_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
@@ -50,7 +56,6 @@ async def telegram_webhook(request: Request) -> JSONResponse:
                 return JSONResponse({"ok": False}, status_code=403)
 
         update = await request.json()
-        # Process in background to respond quickly to Telegram
         asyncio.create_task(_safe_handle_update(update))
         return JSONResponse({"ok": True})
     except Exception:
@@ -65,30 +70,6 @@ async def _safe_handle_update(update: Dict[str, Any]) -> None:
         logger.exception("Update handling failed")
 
 
-def _get_session(user_id: int, user: Dict[str, Any]) -> Dict[str, Any]:
-    session = USER_SESSIONS.get(user_id)
-    flags = USER_FLAGS.get(str(user_id), {})
-    if session is None:
-        session = {
-            "history": [],
-            "language": "ru",
-            "paid": bool(flags.get("paid", False)),
-            "free_used": bool(flags.get("free_used", False)),
-            "state": "idle",
-            "awaiting_language": False,
-            "awaiting_feedback": False,
-            "username": _user_display_name(user),
-        }
-        USER_SESSIONS[user_id] = session
-    else:
-        # Keep username fresh
-        session["username"] = _user_display_name(user)
-        # Sync flags if they were updated on disk
-        session["paid"] = bool(flags.get("paid", session.get("paid", False)))
-        session["free_used"] = bool(flags.get("free_used", session.get("free_used", False)))
-    return session
-
-
 def _user_display_name(user: Dict[str, Any]) -> str:
     username = user.get("username")
     if username:
@@ -97,6 +78,46 @@ def _user_display_name(user: Dict[str, Any]) -> str:
     last_name = user.get("last_name", "")
     full_name = (first_name + " " + last_name).strip()
     return full_name or "Unknown"
+
+
+def _retake_text(language: str) -> str:
+    return "Пройти заново" if language == "ru" else "Retake"
+
+
+def _language_prompt(language: str) -> str:
+    return "Выберите язык: ru или en" if language == "ru" else "Choose language: ru or en"
+
+
+def _feedback_thanks(language: str) -> str:
+    return "Спасибо за отзыв!" if language == "ru" else "Thanks for the feedback!"
+
+
+def _free_locked_message(language: str) -> str:
+    if language == "ru":
+        return "Первое прохождение уже использовано. Для повторного требуется оплата."
+    return "Your free attempt is used. Payment is required for another run."
+
+
+def _pdf_locked_message(language: str) -> str:
+    if language == "ru":
+        return "Полный PDF-отчёт доступен после оплаты."
+    return "The full PDF report is available after payment."
+
+
+def _summary_header(language: str) -> str:
+    return "Краткое резюме" if language == "ru" else "Summary"
+
+
+def _grade_label(language: str) -> str:
+    return "Грейд" if language == "ru" else "Grade"
+
+
+def _strengths_label(language: str) -> str:
+    return "Сильные стороны" if language == "ru" else "Strengths"
+
+
+def _weaknesses_label(language: str) -> str:
+    return "Зоны роста" if language == "ru" else "Growth areas"
 
 
 async def handle_update(update: Dict[str, Any]) -> None:
@@ -118,14 +139,18 @@ async def handle_update(update: Dict[str, Any]) -> None:
     if text is None:
         return
 
-    session = _get_session(user_id, user)
+    session = await _get_or_create_session(user_id, user)
 
-    # Language selection flow
+    # handle retake button
+    if text.strip().lower() in {"пройти заново", "retake"}:
+        text = "/start"
+
+    # language selection flow
     if session.get("awaiting_language") and not text.startswith("/"):
         await _handle_language_selection(session, chat_id, text)
         return
 
-    # Feedback flow
+    # feedback flow
     if session.get("awaiting_feedback") and not text.startswith("/"):
         await _handle_feedback(session, chat_id, user_id, text)
         return
@@ -134,20 +159,39 @@ async def handle_update(update: Dict[str, Any]) -> None:
         await _handle_command(session, chat_id, user_id, text)
         return
 
-    if session.get("state") == "grading":
+    if session.get("state") == "collecting":
         await _handle_dialog_message(session, chat_id, user_id, text)
         return
 
     await send_message(
         TELEGRAM_BOT_TOKEN,
         chat_id,
-        "Напишите /start, чтобы начать оценку грейда дизайнера.",
+        "Напишите /start, чтобы начать тест." if session["language"] == "ru" else "Send /start to begin.",
     )
 
 
-async def _handle_command(
-    session: Dict[str, Any], chat_id: int, user_id: int, text: str
-) -> None:
+async def _get_or_create_session(user_id: int, user: Dict[str, Any]) -> Dict[str, Any]:
+    session = USER_SESSIONS.get(user_id)
+    if session is None:
+        flags = await get_user_state(DB_POOL, user_id)
+        session = {
+            "history": [],
+            "language": "ru",
+            "paid": bool(flags.get("paid", False)),
+            "free_used": bool(flags.get("free_used", False)),
+            "state": "idle",
+            "awaiting_language": False,
+            "awaiting_feedback": False,
+            "username": _user_display_name(user),
+            "last_report": None,
+        }
+        USER_SESSIONS[user_id] = session
+    else:
+        session["username"] = _user_display_name(user)
+    return session
+
+
+async def _handle_command(session: Dict[str, Any], chat_id: int, user_id: int, text: str) -> None:
     command = text.split()[0].lower()
 
     if command == "/start":
@@ -159,112 +203,60 @@ async def _handle_command(
         session["state"] = "idle"
         session["awaiting_language"] = False
         session["awaiting_feedback"] = False
-        await send_message(TELEGRAM_BOT_TOKEN, chat_id, "Прогресс сброшен.")
-        return
-
-    if command == "/grade":
-        await send_message(
-            TELEGRAM_BOT_TOKEN,
-            chat_id,
-            (
-                "Повторное прохождение доступно после оплаты. "
-                "Для эмуляции используйте /pay."
-            ),
-        )
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, "Прогресс сброшен." if session["language"] == "ru" else "Progress reset.")
         return
 
     if command == "/language":
         session["awaiting_language"] = True
-        await send_message(
-            TELEGRAM_BOT_TOKEN,
-            chat_id,
-            "Выберите язык: ru или en",
-        )
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, _language_prompt(session["language"]))
         return
 
     if command == "/feedback":
         session["awaiting_feedback"] = True
-        await send_message(
-            TELEGRAM_BOT_TOKEN,
-            chat_id,
-            "Оставьте отзыв одним сообщением.",
-        )
+        question = await generate_feedback_question(session["history"], session["language"])
+        if not question:
+            question = "Что можно улучшить?" if session["language"] == "ru" else "What could be improved?"
+        session["last_feedback_question"] = question
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, question)
         return
 
     if command == "/pay":
-        if not session.get("free_used"):
-            await send_message(
-                TELEGRAM_BOT_TOKEN,
-                chat_id,
-                "Оплата пока не требуется. Первое прохождение бесплатное.",
-            )
-            return
-
+        # payment hook placeholder
         session["paid"] = True
-        await update_user_flags(user_id=user_id, paid=True, free_used=True)
+        await upsert_user_state(DB_POOL, user_id, paid=True, free_used=session.get("free_used", False))
         await send_message(
             TELEGRAM_BOT_TOKEN,
             chat_id,
-            "Оплата подтверждена (эмуляция). Теперь можно пройти заново: /start.",
+            "Оплата подтверждена (эмуляция)." if session["language"] == "ru" else "Payment confirmed (simulated).",
         )
+        # If a report exists, deliver PDF now
+        if session.get("last_report"):
+            await _send_pdf_report(session, chat_id, user_id)
         return
 
-    await send_message(TELEGRAM_BOT_TOKEN, chat_id, "Неизвестная команда.")
+    await send_message(TELEGRAM_BOT_TOKEN, chat_id, "Неизвестная команда." if session["language"] == "ru" else "Unknown command.")
 
 
 async def _start_dialog(session: Dict[str, Any], chat_id: int, user_id: int) -> None:
     if session.get("free_used") and not session.get("paid"):
-        await send_message(
-            TELEGRAM_BOT_TOKEN,
-            chat_id,
-            (
-                "Первое прохождение уже использовано. "
-                "Повторно можно пройти после оплаты. /grade"
-            ),
-        )
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, _free_locked_message(session["language"]))
         return
 
     session["history"] = []
-    session["state"] = "grading"
+    session["state"] = "collecting"
     session["awaiting_language"] = False
     session["awaiting_feedback"] = False
+    session["last_report"] = None
 
-    await send_message(
-        TELEGRAM_BOT_TOKEN,
-        chat_id,
-        "Designer Grade Bot начал интервью. Отвечайте развернуто.",
+    intro = (
+        "Начинаем интервью. Отвечайте развернуто." if session["language"] == "ru" else "Starting interview. Please answer in detail."
     )
+    await send_message(TELEGRAM_BOT_TOKEN, chat_id, intro)
 
-    next_question = await generate_next_question(session["history"], session["language"])
+    next_question = await generate_next_question(session["history"], COMPETENCY_CONTEXT, session["language"])
     if next_question is None:
-        await send_message(
-            TELEGRAM_BOT_TOKEN,
-            chat_id,
-            "Не удалось сгенерировать вопрос. Попробуйте /start позже.",
-        )
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, "Не удалось сгенерировать вопрос." if session["language"] == "ru" else "Failed to generate a question.")
         session["state"] = "idle"
-        return
-
-    if next_question:
-        session["history"].append({"role": "assistant", "content": next_question})
-        await send_message(TELEGRAM_BOT_TOKEN, chat_id, next_question)
-        return
-
-    await _finalize_grade(session, chat_id, user_id=user_id)
-
-
-async def _handle_dialog_message(
-    session: Dict[str, Any], chat_id: int, user_id: int, text: str
-) -> None:
-    session["history"].append({"role": "user", "content": text})
-
-    next_question = await generate_next_question(session["history"], session["language"])
-    if next_question is None:
-        await send_message(
-            TELEGRAM_BOT_TOKEN,
-            chat_id,
-            "Не удалось продолжить диалог. Попробуйте /reset и /start.",
-        )
         return
 
     if next_question:
@@ -275,17 +267,49 @@ async def _handle_dialog_message(
     await _finalize_grade(session, chat_id, user_id)
 
 
-async def _finalize_grade(
-    session: Dict[str, Any], chat_id: int, user_id: Optional[int]
-) -> None:
-    report = await grade_user_from_history(session["history"], session["language"])
+async def _handle_dialog_message(session: Dict[str, Any], chat_id: int, user_id: int, text: str) -> None:
+    session["history"].append({"role": "user", "content": text})
+
+    next_question = await generate_next_question(session["history"], COMPETENCY_CONTEXT, session["language"])
+    if next_question is None:
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, "Не удалось продолжить." if session["language"] == "ru" else "Failed to continue.")
+        return
+
+    if next_question:
+        session["history"].append({"role": "assistant", "content": next_question})
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, next_question)
+        return
+
+    await _finalize_grade(session, chat_id, user_id)
+
+
+async def _finalize_grade(session: Dict[str, Any], chat_id: int, user_id: int) -> None:
+    report = await grade_user_from_history(session["history"], COMPETENCY_CONTEXT, session["language"])
     if report is None:
-        await send_message(
-            TELEGRAM_BOT_TOKEN,
-            chat_id,
-            "Не удалось определить грейд. Попробуйте позже.",
-        )
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, "Не удалось определить грейд." if session["language"] == "ru" else "Failed to determine grade.")
         session["state"] = "idle"
+        return
+
+    session["last_report"] = report
+
+    summary_text = _format_summary(report, session["language"])
+    await send_message(TELEGRAM_BOT_TOKEN, chat_id, summary_text)
+
+    if session.get("paid"):
+        await _send_pdf_report(session, chat_id, user_id)
+    else:
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, _pdf_locked_message(session["language"]))
+
+    session["free_used"] = True
+    session["state"] = "completed"
+    await upsert_user_state(DB_POOL, user_id, paid=session.get("paid", False), free_used=True)
+
+    await _send_retake_button(session, chat_id)
+
+
+async def _send_pdf_report(session: Dict[str, Any], chat_id: int, user_id: int) -> None:
+    report = session.get("last_report")
+    if not report:
         return
 
     user_display_name = session.get("username", "Unknown")
@@ -294,87 +318,101 @@ async def _finalize_grade(
 
     pdf_path = await generate_pdf_report(report, user_display_name, file_path)
     if not pdf_path:
-        await send_message(
-            TELEGRAM_BOT_TOKEN,
-            chat_id,
-            "Не удалось сформировать PDF-отчёт.",
-        )
-        session["state"] = "idle"
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, "Не удалось сформировать PDF." if session["language"] == "ru" else "Failed to generate PDF.")
         return
 
     await send_document(
         TELEGRAM_BOT_TOKEN,
         chat_id,
         pdf_path,
-        caption="Ваш отчёт по грейду дизайнера.",
+        caption="Ваш PDF-отчёт" if session["language"] == "ru" else "Your PDF report",
     )
 
-    # Save data asynchronously
-    if user_id is not None:
-        await save_user_result(user_id, user_display_name, session["language"], report)
 
-    session["free_used"] = True
-    if user_id is not None:
-        await update_user_flags(
-            user_id=user_id, paid=session.get("paid", False), free_used=True
-        )
-    session["state"] = "completed"
-
-
-async def _handle_language_selection(
-    session: Dict[str, Any], chat_id: int, text: str
-) -> None:
+async def _handle_language_selection(session: Dict[str, Any], chat_id: int, text: str) -> None:
     language = text.strip().lower()
+    if language in {"русский", "ru"}:
+        language = "ru"
+    elif language in {"english", "en"}:
+        language = "en"
+
     if language not in {"ru", "en"}:
-        await send_message(
-            TELEGRAM_BOT_TOKEN,
-            chat_id,
-            "Поддерживаются только ru или en. Повторите выбор.",
-        )
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, "Поддерживаются только ru или en." if session["language"] == "ru" else "Only ru or en supported.")
         return
 
     session["language"] = language
     session["awaiting_language"] = False
-    await send_message(
-        TELEGRAM_BOT_TOKEN,
-        chat_id,
-        f"Язык установлен: {language}.",
-    )
+    await send_message(TELEGRAM_BOT_TOKEN, chat_id, f"Язык установлен: {language}." if language == "ru" else f"Language set: {language}.")
 
 
-async def _handle_feedback(
-    session: Dict[str, Any], chat_id: int, user_id: int, text: str
-) -> None:
-    saved = await save_feedback(user_id, session.get("username", "Unknown"), text)
+async def _handle_feedback(session: Dict[str, Any], chat_id: int, user_id: int, text: str) -> None:
     session["awaiting_feedback"] = False
+    question = session.get("last_feedback_question")
+    saved = await save_feedback(
+        DB_POOL,
+        user_id=user_id,
+        username=session.get("username", "Unknown"),
+        language=session.get("language", "ru"),
+        question=question,
+        answer=text,
+    )
     if saved:
-        await send_message(TELEGRAM_BOT_TOKEN, chat_id, "Спасибо за отзыв!")
+        await send_message(TELEGRAM_BOT_TOKEN, chat_id, _feedback_thanks(session["language"]))
         return
 
+    await send_message(TELEGRAM_BOT_TOKEN, chat_id, "Не удалось сохранить отзыв." if session["language"] == "ru" else "Failed to save feedback.")
+
+
+async def _send_retake_button(session: Dict[str, Any], chat_id: int) -> None:
+    button_text = _retake_text(session["language"])
+    reply_markup = {
+        "keyboard": [[{"text": button_text}]],
+        "resize_keyboard": True,
+        "one_time_keyboard": True,
+    }
     await send_message(
         TELEGRAM_BOT_TOKEN,
         chat_id,
-        "Не удалось сохранить отзыв. Попробуйте позже.",
+        "Готовы пройти заново?" if session["language"] == "ru" else "Ready to retake?",
+        reply_markup=reply_markup,
     )
+
+
+def _format_summary(report: Dict[str, Any], language: str) -> str:
+    grade = report.get("grade", "Unknown")
+    summary = report.get("summary", "")
+    strengths = report.get("strengths", [])
+    weaknesses = report.get("weaknesses", [])
+
+    lines: List[str] = []
+    lines.append(f"{_summary_header(language)}")
+    lines.append(f"{_grade_label(language)}: {grade}")
+    if summary:
+        lines.append(summary)
+    if strengths:
+        lines.append(f"{_strengths_label(language)}: " + ", ".join(strengths))
+    if weaknesses:
+        lines.append(f"{_weaknesses_label(language)}: " + ", ".join(weaknesses))
+
+    return "\n".join(lines)
 
 
 @app.on_event("startup")
 async def on_startup() -> None:
+    global COMPETENCY_CONTEXT, DB_POOL
+
+    COMPETENCY_CONTEXT = load_competency_context()
+    DB_POOL = await init_db()
+    await ensure_schema(DB_POOL)
+
     if not TELEGRAM_BOT_TOKEN:
         logger.warning("TELEGRAM_BOT_TOKEN is not set")
-
     if not os.getenv("OPENAI_API_KEY"):
         logger.warning("OPENAI_API_KEY is not set")
 
-    global USER_FLAGS
-    USER_FLAGS = await load_user_flags()
-
-    if os.getenv("AUTO_SET_WEBHOOK", "false").lower() == "true":
-        if TELEGRAM_BOT_TOKEN and PUBLIC_URL:
-            await set_webhook(
-                TELEGRAM_BOT_TOKEN,
-                f"{PUBLIC_URL.rstrip('/')}/webhook",
-                TELEGRAM_WEBHOOK_SECRET,
-            )
-        else:
-            logger.warning("AUTO_SET_WEBHOOK is enabled but PUBLIC_URL or TELEGRAM_BOT_TOKEN is missing")
+    if AUTO_SET_WEBHOOK and TELEGRAM_BOT_TOKEN and PUBLIC_URL:
+        await set_webhook(
+            TELEGRAM_BOT_TOKEN,
+            f"{PUBLIC_URL.rstrip('/')}/webhook",
+            TELEGRAM_WEBHOOK_SECRET,
+        )

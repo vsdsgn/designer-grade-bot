@@ -1,18 +1,20 @@
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import httpx
 
 logger = logging.getLogger("designer_grade_bot.telegram")
 
 
-async def send_message(token: str, chat_id: int, text: str) -> bool:
+async def send_message(token: str, chat_id: int, text: str, reply_markup: Optional[Dict[str, Any]] = None) -> bool:
     if not token or chat_id is None:
         logger.error("Missing Telegram token or chat_id")
         return False
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text}
+    payload: Dict[str, Any] = {"chat_id": chat_id, "text": text}
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -39,7 +41,7 @@ async def send_document(
     try:
         with open(file_path, "rb") as file_handle:
             files = {"document": (file_path.split("/")[-1], file_handle, "application/pdf")}
-            data = {"chat_id": chat_id}
+            data: Dict[str, Any] = {"chat_id": chat_id}
             if caption:
                 data["caption"] = caption
 
@@ -58,7 +60,7 @@ async def set_webhook(token: str, url: str, secret_token: str = "") -> bool:
         return False
 
     endpoint = f"https://api.telegram.org/bot{token}/setWebhook"
-    payload = {"url": url}
+    payload: Dict[str, Any] = {"url": url}
     if secret_token:
         payload["secret_token"] = secret_token
 
