@@ -19,7 +19,7 @@ SYSTEM_PROMPT = (
     "You are a lead product designer. Using the interview history and competency matrices, "
     "assess the designer and return JSON with: "
     "grade, summary, strengths (list), weaknesses (list), recommendations (list), "
-    "materials (list of {title, url}), detailed_report. "
+    "materials (list of {{title, url}}), detailed_report. "
     "The detailed_report must be significantly longer and more specific than summary. "
     "Choose grade only from: "
     f"{GRADE_OPTIONS}. "

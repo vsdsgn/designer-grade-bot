@@ -19,8 +19,8 @@ SYSTEM_PROMPT = (
     "You are a senior product design consultant. "
     "Your goal is to gather enough information to assess a designer's grade. "
     "Ask one open question at a time and adapt to answers. "
-    "If you have enough information, return JSON: {\"done\": true, \"next_question\": \"\"}. "
-    "Otherwise return JSON: {\"done\": false, \"next_question\": \"...\"}. "
+    "If you have enough information, return JSON: {{\"done\": true, \"next_question\": \"\"}}. "
+    "Otherwise return JSON: {{\"done\": false, \"next_question\": \"...\"}}. "
     "Do not finish the interview before at least {min_user_answers} substantive user answers. "
     "Language: {language}."
 )
