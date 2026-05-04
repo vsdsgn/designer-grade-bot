@@ -36,7 +36,9 @@ class OutfitModel {
       name: data['name'] ?? '',
       tag: data['tag'] ?? 'casual',
       itemIds: List<String>.from(data['itemIds'] ?? []),
-      createdAt: DateTime.parse(data['createdAt']),
+      createdAt: data['createdAt'] != null
+          ? DateTime.parse(data['createdAt'])
+          : DateTime.now(),
     );
   }
 }
